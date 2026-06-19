@@ -23,6 +23,7 @@
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/IntrinsicInst.h"
 #include "llvm/IR/MemoryModelRelaxationAnnotations.h"
+#include <optional>
 
 using namespace mlir;
 using namespace mlir::LLVM;
@@ -123,6 +124,10 @@ static LogicalResult setProfilingAttr(OpBuilder &builder, llvm::MDNode *node,
         llvm::mdconst::dyn_extract<llvm::ConstantInt>(node->getOperand(1));
     if (!entryCount)
       return failure();
+    std::optional<uint64_t> entryCountValue =
+        entryCount->getValue().tryZExtValue();
+    if (!entryCountValue)
+      return failure();
     if (auto funcOp = dyn_cast<LLVMFuncOp>(op)) {
       bool isSynthetic =
           name->getString() == llvm::MDProfLabels::SyntheticFunctionEntryCount;
@@ -135,12 +140,14 @@ static LogicalResult setProfilingAttr(OpBuilder &builder, llvm::MDNode *node,
                   node->getOperand(idx));
           if (!guid)
             return failure();
-          importGUIDs.push_back(
-              static_cast<int64_t>(guid->getValue().getZExtValue()));
+          std::optional<uint64_t> guidValue = guid->getValue().tryZExtValue();
+          if (!guidValue)
+            return failure();
+          importGUIDs.push_back(static_cast<int64_t>(*guidValue));
         }
       }
 
-      funcOp.setFunctionEntryCount(entryCount->getZExtValue());
+      funcOp.setFunctionEntryCount(*entryCountValue);
       if (isSynthetic)
         funcOp.setFunctionEntryCountSynthetic(true);
       if (!importGUIDs.empty())

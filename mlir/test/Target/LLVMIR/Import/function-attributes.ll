@@ -193,12 +193,12 @@ define void @synthetic_entry_count() !prof !2 {
 
 ; CHECK-LABEL: @entry_count_imports
 ; CHECK-SAME:  attributes {function_entry_count = 7 : i64
-; CHECK-SAME:  function_entry_count_imports = array<i64: 1234>
+; CHECK-SAME:  function_entry_count_imports = array<i64: 1234, -1>
 define void @entry_count_imports() !prof !3 {
   ret void
 }
 
-!3 = !{!"function_entry_count", i64 7, i64 1234}
+!3 = !{!"function_entry_count", i64 7, i64 1234, i64 -1}
 
 ; // -----
 
@@ -222,6 +222,17 @@ define void @entry_count_malformed_import() !prof !5 {
 }
 
 !5 = !{!"function_entry_count", i64 7, !"bad"}
+
+; // -----
+
+; CHECK-LABEL: @entry_count_wide_import
+; CHECK-NOT: function_entry_count
+; expected-warning @below {{unhandled function metadata}}
+define void @entry_count_wide_import() !prof !6 {
+  ret void
+}
+
+!6 = !{!"function_entry_count", i64 7, i128 18446744073709551616}
 
 ; // -----
 

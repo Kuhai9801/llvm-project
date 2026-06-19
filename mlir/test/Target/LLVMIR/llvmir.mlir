@@ -1914,11 +1914,11 @@ llvm.func @syntheticFunctionEntryCount() attributes {function_entry_count = 7 : 
 
 // CHECK-LABEL: @functionEntryCountWithImports
 // CHECK-SAME: !prof ![[IMPORTS_PROF_ID:[0-9]*]]
-llvm.func @functionEntryCountWithImports() attributes {function_entry_count = 7 : i64, function_entry_count_imports = array<i64: 1234>} {
+llvm.func @functionEntryCountWithImports() attributes {function_entry_count = 7 : i64, function_entry_count_imports = array<i64: 1234, -1>} {
   llvm.return
 }
 
-// CHECK: ![[IMPORTS_PROF_ID]] = !{!"function_entry_count", i64 7, i64 1234}
+// CHECK: ![[IMPORTS_PROF_ID]] = !{!"function_entry_count", i64 7, i64 1234, i64 -1}
 
 // -----
 

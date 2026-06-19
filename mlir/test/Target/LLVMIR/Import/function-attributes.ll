@@ -180,6 +180,51 @@ define void @entry_count() !prof !1 {
 
 ; // -----
 
+; CHECK-LABEL: @synthetic_entry_count
+; CHECK-SAME:  attributes {function_entry_count = 7 : i64
+; CHECK-SAME:  function_entry_count_synthetic
+define void @synthetic_entry_count() !prof !2 {
+  ret void
+}
+
+!2 = !{!"synthetic_function_entry_count", i64 7}
+
+; // -----
+
+; CHECK-LABEL: @entry_count_imports
+; CHECK-SAME:  attributes {function_entry_count = 7 : i64
+; CHECK-SAME:  function_entry_count_imports = array<i64: 1234>
+define void @entry_count_imports() !prof !3 {
+  ret void
+}
+
+!3 = !{!"function_entry_count", i64 7, i64 1234}
+
+; // -----
+
+; CHECK-LABEL: @synthetic_entry_count_imports
+; CHECK-SAME:  attributes {function_entry_count = 7 : i64
+; CHECK-SAME:  function_entry_count_imports = array<i64: 1234>
+; CHECK-SAME:  function_entry_count_synthetic
+define void @synthetic_entry_count_imports() !prof !4 {
+  ret void
+}
+
+!4 = !{!"synthetic_function_entry_count", i64 7, i64 1234}
+
+; // -----
+
+; CHECK-LABEL: @entry_count_malformed_import
+; CHECK-NOT: function_entry_count
+; expected-warning @below {{unhandled function metadata}}
+define void @entry_count_malformed_import() !prof !5 {
+  ret void
+}
+
+!5 = !{!"function_entry_count", i64 7, !"bad"}
+
+; // -----
+
 ; CHECK-LABEL: @func_memory
 ; CHECK-SAME:  attributes {memory_effects = #llvm.memory_effects<other = readwrite, argMem = none, inaccessibleMem = readwrite, errnoMem = readwrite, targetMem0 = readwrite, targetMem1 = readwrite>}
 ; CHECK:   llvm.return

@@ -114,10 +114,9 @@ static LogicalResult setProfilingAttr(OpBuilder &builder, llvm::MDNode *node,
     return failure();
 
   // Handle function entry count metadata.
-  if (name->getString() == llvm::MDProfLabels::FunctionEntryCount) {
-
-    // TODO support function entry count metadata with GUID fields.
-    if (node->getNumOperands() != 2)
+  if (name->getString() == llvm::MDProfLabels::FunctionEntryCount ||
+      name->getString() == llvm::MDProfLabels::SyntheticFunctionEntryCount) {
+    if (node->getNumOperands() < 2)
       return failure();
 
     llvm::ConstantInt *entryCount =
@@ -125,7 +124,28 @@ static LogicalResult setProfilingAttr(OpBuilder &builder, llvm::MDNode *node,
     if (!entryCount)
       return failure();
     if (auto funcOp = dyn_cast<LLVMFuncOp>(op)) {
+      bool isSynthetic =
+          name->getString() == llvm::MDProfLabels::SyntheticFunctionEntryCount;
+      SmallVector<int64_t> importGUIDs;
+      if (node->getNumOperands() > 2) {
+        importGUIDs.reserve(node->getNumOperands() - 2);
+        for (unsigned idx = 2, e = node->getNumOperands(); idx < e; ++idx) {
+          llvm::ConstantInt *guid =
+              llvm::mdconst::dyn_extract<llvm::ConstantInt>(
+                  node->getOperand(idx));
+          if (!guid)
+            return failure();
+          importGUIDs.push_back(
+              static_cast<int64_t>(guid->getValue().getZExtValue()));
+        }
+      }
+
       funcOp.setFunctionEntryCount(entryCount->getZExtValue());
+      if (isSynthetic)
+        funcOp.setFunctionEntryCountSynthetic(true);
+      if (!importGUIDs.empty())
+        funcOp.setFunctionEntryCountImportsAttr(
+            DenseI64ArrayAttr::get(builder.getContext(), importGUIDs));
       return success();
     }
     return op->emitWarning()

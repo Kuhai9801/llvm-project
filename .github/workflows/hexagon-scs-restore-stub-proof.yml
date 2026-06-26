@@ -1,0 +1,60 @@
+name: Hexagon SCS restore-stub proof
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - repro/hexagon-scs-restore-stub
+
+jobs:
+  prove:
+    name: Build llc and check vulnerable Hexagon SCS output
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out fork branch
+        uses: actions/checkout@v4
+
+      - name: Configure minimal LLVM build
+        run: |
+          cmake -S llvm -B build -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DLLVM_TARGETS_TO_BUILD=Hexagon \
+            -DLLVM_INCLUDE_TESTS=ON \
+            -DLLVM_BUILD_TESTS=OFF \
+            -DLLVM_ENABLE_ASSERTIONS=ON
+
+      - name: Build llc and FileCheck
+        run: cmake --build build --target llc FileCheck --parallel 2
+
+      - name: Generate Hexagon assembly
+        run: |
+          build/bin/llc -mtriple=hexagon -mattr=+reserved-r19 \
+            < llvm/test/CodeGen/Hexagon/shadow-call-stack-restore-stub-repro.ll \
+            | tee shadow-call-stack-restore-stub.s
+
+      - name: Prove vulnerable restore-stub return shape
+        run: |
+          if build/bin/FileCheck \
+            llvm/test/CodeGen/Hexagon/shadow-call-stack-restore-stub-repro.ll \
+            --check-prefix=BUG < shadow-call-stack-restore-stub.s; then
+            echo "BUG CONFIRMED: SCS prologue is present, but the function returns through __restore_r16_through_r17_and_deallocframe without an SCS epilogue."
+            exit 0
+          fi
+
+          if build/bin/FileCheck \
+            llvm/test/CodeGen/Hexagon/shadow-call-stack-restore-stub-repro.ll \
+            --check-prefix=FIXED < shadow-call-stack-restore-stub.s; then
+            echo "BUG NOT REPRODUCED: output has the expected SCS epilogue shape."
+            exit 1
+          fi
+
+          echo "Output matched neither the vulnerable nor fixed pattern."
+          cat shadow-call-stack-restore-stub.s
+          exit 1
+
+      - name: Upload generated assembly
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: shadow-call-stack-restore-stub-assembly
+          path: shadow-call-stack-restore-stub.s
